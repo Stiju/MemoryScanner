@@ -17,6 +17,10 @@ public:
 		results.clear();
 	}
 
+	void shrink() {
+		results.shrink_to_fit();
+	}
+
 	size_t size() const {
 		return results.size();
 	}

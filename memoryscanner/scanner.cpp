@@ -24,6 +24,7 @@ Scanner::Scanner(size_t process_id) {
 	if(!sys_open_process(process_id)) {
 		throw std::runtime_error("failed to open process");
 	}
+	results.reserve(10000000);
 }
 
 Scanner::~Scanner() {
@@ -70,15 +71,43 @@ void Scanner::find_first(int value) {
 }
 
 void Scanner::find_next(int value) {
-	for(auto& result : results) {
-		size_t read;
-		if(!sys_seek_memory(result.address)) {
-			std::cout << "Unable to seek memory location, error " << sys_get_error() << '\n';
+	auto it = results.begin();
+	for(const auto& region : regions) {
+		auto end = std::lower_bound(it, results.end(), region.end,
+			[](const MemoryResult& result, void* address) {return result.address < address; });
+		if(it == end) {
 			continue;
 		}
-		bool success = sys_read_memory(result.address, &result.value, 4, &read);
-		if(!success) {
-			std::cout << "Failed to read value at " << result.address << ", read " << read << '/' << sizeof(int) << ", error " << sys_get_error() << '\n';
+		size_t read;
+		size_t bytesToRead = static_cast<uint8_t*>((end - 1)->address) - static_cast<uint8_t*>(it->address) + sizeof(int);
+		
+		if(bytesToRead > kBufferSize) {
+			bytesToRead = kBufferSize;
+		}
+		uint8_t* begin = static_cast<uint8_t*>(it->address);
+		int x = 0, hits = 0;
+		if(!sys_seek_memory(begin)) {
+			std::cout << "Unable to seek memory location " << static_cast<void*>(begin) << ", error " << sys_get_error() << '\n';
+			continue;
+		}
+		while(begin < region.end) {
+			uint8_t buffer[kBufferSize];
+			bool success = sys_read_memory(begin, &buffer, bytesToRead, &read);
+			if(!success) {
+				std::cout << "Failed to read value at " << static_cast<void*>(begin) << ", read " << read << '/' << bytesToRead << ", error " << sys_get_error() << '\n';
+			}
+			for(; it != end; ++it) {
+				auto position = static_cast<uint8_t*>(it->address) - begin;
+				if(position >= kBufferSize) {
+					break;
+				}
+				it->value = *reinterpret_cast<int*>(buffer + position);
+			}
+			begin = begin + kBufferSize;
+			if(begin < region.end && begin >(static_cast<uint8_t*>(region.end) - kBufferSize)) {
+				bytesToRead = static_cast<uint8_t*>(region.end) - begin;
+			}
+			++x;
 		}
 	}
 	results.erase(std::remove_if(results.begin(), results.end(), [value](auto& x) {return x.value != value; }), results.end());

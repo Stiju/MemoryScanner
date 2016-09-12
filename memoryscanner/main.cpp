@@ -54,9 +54,13 @@ int main() {
 			continue;
 		}
 
-		scanner.find(value);
+		{
+			StopWatch sw;
+			scanner.find(value);
+		}
+		scanner.shrink();
 
-		auto results = scanner.get_results();
+		auto& results = scanner.get_results();
 		std::cout << "results: " << results.size() << '\n';
 		int i = 0;
 		for(const auto& adr : results) {
