@@ -98,7 +98,7 @@ public:
 					std::cout << "Failed to read value at " << static_cast<void*>(begin) << ", read " << read << '/' << bytesToRead << ", error " << sys_get_error() << '\n';
 				}
 				for(uint8_t* i = buffer, *end = buffer + bytesToRead; i < end; i += sizeof(int)) {
-					if(*(int*)i == value) {
+					if(*reinterpret_cast<int*>(i) == value) {
 						void* adr = begin + (i - buffer);
 						results.emplace_back(adr, value);
 						++hits;
