@@ -64,7 +64,7 @@ int main() {
 		std::cout << "results: " << results.size() << '\n';
 		int i = 0;
 		for(const auto& adr : results) {
-			std::cout << adr.address << '\n';
+			std::cout << static_cast<void*>(adr.address) << '\n';
 			if(++i == 10) {
 				break;
 			}

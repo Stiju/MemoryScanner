@@ -48,7 +48,7 @@ bool sys_write_memory(void* address, const void* buffer, size_t size, size_t* wr
 
 MemoryRegions sys_memory_regions() {
 	MemoryRegions memory_regions;
-	char* address = nullptr;
+	uint8_t* address = nullptr;
 
 	SYSTEM_INFO si;
 	GetSystemInfo(&si);
@@ -60,7 +60,7 @@ MemoryRegions sys_memory_regions() {
 			break;
 		}
 		if((mbi.Protect & PAGE_READWRITE) == PAGE_READWRITE && mbi.State == MEM_COMMIT && (mbi.Protect & PAGE_NOACCESS) != PAGE_NOACCESS && (mbi.Protect & PAGE_GUARD) != PAGE_GUARD && (mbi.Protect & PAGE_NOCACHE) != PAGE_NOCACHE) {
-			memory_regions.emplace_back(mbi.BaseAddress, static_cast<char*>(mbi.BaseAddress) + mbi.RegionSize);
+			memory_regions.emplace_back(static_cast<uint8_t*>(mbi.BaseAddress), static_cast<uint8_t*>(mbi.BaseAddress) + mbi.RegionSize);
 		}
 		address += mbi.RegionSize;
 	}

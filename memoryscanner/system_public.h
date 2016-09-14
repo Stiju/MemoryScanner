@@ -1,19 +1,21 @@
 #pragma once
 
 #include <vector>
+#include <cstdint>
 
 struct MemoryRegion {
-	void* begin;
-	void* end;
-	MemoryRegion(void* b, void* e) : begin(b), end(e) {}
+	uint8_t* begin;
+	uint8_t* end;
+	MemoryRegion(uint8_t* b, uint8_t* e) : begin(b), end(e) {}
 };
 
 using MemoryRegions = std::vector<MemoryRegion>;
 
 struct MemoryResult {
-	void* address;
+	uint8_t* address;
 	int value;
-	MemoryResult(void* adr, int v) : address(adr), value(v) {}
+	MemoryResult(uint8_t* adr, int v) : address(adr), value(v) {}
+	friend bool operator<(const MemoryResult& element, uint8_t* value) { return element.address < value; }
 };
 
 using MemoryResults = std::vector<MemoryResult>;

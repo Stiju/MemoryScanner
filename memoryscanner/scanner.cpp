@@ -2,7 +2,7 @@
 #include <iostream>
 #include <algorithm>
 
-const int kBufferSize = 4096 * 32;
+const long long kBufferSize = 4096 * 32;
 
 void merge_memory_blocks(MemoryRegions& regions) {
 	for(auto it = regions.begin(); it != regions.end();) {
@@ -56,7 +56,7 @@ void Scanner::find_first(int value) {
 			}
 			for(uint8_t* i = buffer, *end = buffer + bytesToRead; i < end; i += sizeof(int)) {
 				if(*reinterpret_cast<int*>(i) == value) {
-					void* adr = begin + (i - buffer);
+					uint8_t* adr = begin + (i - buffer);
 					results.emplace_back(adr, value);
 					++hits;
 				}
@@ -71,43 +71,38 @@ void Scanner::find_first(int value) {
 }
 
 void Scanner::find_next(int value) {
-	auto it = results.begin();
+	auto result_it = results.begin();
+	auto result_last = results.end();
 	for(const auto& region : regions) {
-		auto end = std::lower_bound(it, results.end(), region.end,
-			[](const MemoryResult& result, void* address) {return result.address < address; });
-		if(it == end) {
+		result_it = std::lower_bound(result_it, result_last, region.begin);
+		if(result_it == result_last) { // reached the end
+			break;
+		}
+		auto result_end = std::lower_bound(result_it, result_last, region.end);
+		if(result_it == result_end) { // no results in current region
 			continue;
 		}
-		size_t read;
-		size_t bytesToRead = static_cast<uint8_t*>((end - 1)->address) - static_cast<uint8_t*>(it->address) + sizeof(int);
-		
-		if(bytesToRead > kBufferSize) {
-			bytesToRead = kBufferSize;
-		}
-		uint8_t* begin = static_cast<uint8_t*>(it->address);
-		int x = 0, hits = 0;
+
+		uint8_t* begin = result_it->address;
 		if(!sys_seek_memory(begin)) {
 			std::cout << "Unable to seek memory location " << static_cast<void*>(begin) << ", error " << sys_get_error() << '\n';
 			continue;
 		}
-		while(begin < region.end) {
+		while(begin < region.end && result_it != result_end) {
+			size_t read;
 			uint8_t buffer[kBufferSize];
-			bool success = sys_read_memory(begin, &buffer, bytesToRead, &read);
-			if(!success) {
+			size_t bytesToRead = std::min(kBufferSize, region.end - begin);
+			if(!sys_read_memory(begin, &buffer, bytesToRead, &read)) {
 				std::cout << "Failed to read value at " << static_cast<void*>(begin) << ", read " << read << '/' << bytesToRead << ", error " << sys_get_error() << '\n';
 			}
-			for(; it != end; ++it) {
-				auto position = static_cast<uint8_t*>(it->address) - begin;
+			for(; result_it != result_end; ++result_it) {
+				auto position = result_it->address - begin;
 				if(position >= kBufferSize) {
 					break;
 				}
-				it->value = *reinterpret_cast<int*>(buffer + position);
+				result_it->value = *reinterpret_cast<int*>(buffer + position);
 			}
-			begin = begin + kBufferSize;
-			if(begin < region.end && begin >(static_cast<uint8_t*>(region.end) - kBufferSize)) {
-				bytesToRead = static_cast<uint8_t*>(region.end) - begin;
-			}
-			++x;
+			begin += kBufferSize;
 		}
 	}
 	results.erase(std::remove_if(results.begin(), results.end(), [value](auto& x) {return x.value != value; }), results.end());
