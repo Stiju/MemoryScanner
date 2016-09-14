@@ -37,18 +37,13 @@ void Scanner::find_first(int value) {
 	merge_memory_blocks(regions);
 	std::cout << "Regions: " << regions.size() << '\n';
 	for(const auto& region : regions) {
-		size_t read;
-		size_t bytesToRead = (static_cast<uint8_t*>(region.end) - static_cast<uint8_t*>(region.begin));
-		if(bytesToRead > kBufferSize) {
-			bytesToRead = kBufferSize;
-		}
-		uint8_t* begin = static_cast<uint8_t*>(region.begin);
-		int x = 0, hits = 0;
+		uint8_t* begin = region.begin;
 		if(!sys_seek_memory(begin)) {
 			std::cout << "Unable to seek memory location " << static_cast<void*>(begin) << ", error " << sys_get_error() << '\n';
 			continue;
 		}
 		while(begin < region.end) {
+			size_t read, bytesToRead = std::min(kBufferSize, region.end - begin);
 			uint8_t buffer[kBufferSize];
 			bool success = sys_read_memory(begin, &buffer, bytesToRead, &read);
 			if(!success) {
@@ -56,16 +51,10 @@ void Scanner::find_first(int value) {
 			}
 			for(uint8_t* i = buffer, *end = buffer + bytesToRead; i < end; i += sizeof(int)) {
 				if(*reinterpret_cast<int*>(i) == value) {
-					uint8_t* adr = begin + (i - buffer);
-					results.emplace_back(adr, value);
-					++hits;
+					results.emplace_back(begin + (i - buffer), value);
 				}
 			}
-			begin = begin + kBufferSize;
-			if(begin < region.end && begin >(static_cast<uint8_t*>(region.end) - kBufferSize)) {
-				bytesToRead = static_cast<uint8_t*>(region.end) - begin;
-			}
-			++x;
+			begin += kBufferSize;
 		}
 	}
 }
@@ -89,9 +78,8 @@ void Scanner::find_next(int value) {
 			continue;
 		}
 		while(begin < region.end && result_it != result_end) {
-			size_t read;
+			size_t read, bytesToRead = std::min(kBufferSize, region.end - begin);
 			uint8_t buffer[kBufferSize];
-			size_t bytesToRead = std::min(kBufferSize, region.end - begin);
 			if(!sys_read_memory(begin, &buffer, bytesToRead, &read)) {
 				std::cout << "Failed to read value at " << static_cast<void*>(begin) << ", read " << read << '/' << bytesToRead << ", error " << sys_get_error() << '\n';
 			}
