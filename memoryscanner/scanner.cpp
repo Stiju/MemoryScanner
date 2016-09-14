@@ -2,7 +2,7 @@
 #include <iostream>
 #include <algorithm>
 
-const long long kBufferSize = 4096 * 32;
+const size_t kBufferSize = 4096 * 32;
 
 Scanner::Scanner(size_t process_id) {
 	if(!sys_open_process(process_id)) {
@@ -23,7 +23,7 @@ void Scanner::find_first(int value) {
 			continue;
 		}
 		while(begin < region.end) {
-			size_t read, bytesToRead = std::min(kBufferSize, region.end - begin);
+			size_t read, bytesToRead = std::min(kBufferSize, static_cast<size_t>(region.end - begin));
 			uint8_t buffer[kBufferSize];
 			bool success = sys_read_memory(begin, &buffer, bytesToRead, &read);
 			if(!success) {
@@ -58,7 +58,7 @@ void Scanner::find_next(int value) {
 			continue;
 		}
 		while(begin < region.end && result_it != result_end) {
-			size_t read, bytesToRead = std::min(kBufferSize, region.end - begin);
+			size_t read, bytesToRead = std::min(kBufferSize, static_cast<size_t>(region.end - begin));
 			uint8_t buffer[kBufferSize];
 			if(!sys_read_memory(begin, &buffer, bytesToRead, &read)) {
 				std::cout << "Failed to read value at " << static_cast<void*>(begin) << ", read " << read << '/' << bytesToRead << ", error " << sys_get_error() << '\n';
