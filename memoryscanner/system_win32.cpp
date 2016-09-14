@@ -59,7 +59,7 @@ MemoryRegions sys_memory_regions() {
 		if(bytes == 0) {
 			break;
 		}
-		if((mbi.Protect & PAGE_READWRITE) == PAGE_READWRITE && mbi.State == MEM_COMMIT && (mbi.Protect & PAGE_NOACCESS) != PAGE_NOACCESS && (mbi.Protect & PAGE_GUARD) != PAGE_GUARD && (mbi.Protect & PAGE_NOCACHE) != PAGE_NOCACHE) {
+		if((mbi.Protect & (PAGE_READWRITE | MEM_COMMIT)) != 0 && (mbi.Protect & (PAGE_NOACCESS | PAGE_GUARD | PAGE_NOCACHE)) == 0) {
 			memory_regions.emplace_back(static_cast<uint8_t*>(mbi.BaseAddress), static_cast<uint8_t*>(mbi.BaseAddress) + mbi.RegionSize);
 		}
 		address += mbi.RegionSize;
