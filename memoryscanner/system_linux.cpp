@@ -66,10 +66,11 @@ MemoryRegions sys_memory_regions() {
 	sprintf(filename, "/proc/%d/maps", linux.process_id);
 	FILE* file = fopen(filename, "r");
 	if(file) {
-		long long addr, endaddr, offset, inode;
+		uint8_t* addr, *endaddr;
+		long long offset, inode;
 		char permissions[8], device[8], pathname[256];
 		for(;;) {
-			int ret = fscanf(file, "%llx-%llx %s %llx %s %llx %[^\n]", &addr, &endaddr, permissions, &offset, device, &inode, pathname);
+			int ret = fscanf(file, "%p-%p %s %llx %s %llx %[^\n]", &addr, &endaddr, permissions, &offset, device, &inode, pathname);
 			if(ret == 0 || ret == EOF) {
 				break;
 			}
@@ -78,11 +79,11 @@ MemoryRegions sys_memory_regions() {
 			bool exec = permissions[2] == 'x';
 			bool priv = permissions[3] == 'p';
 			if(read && write) {
-				memory_regions.emplace_back(reinterpret_cast<void*>(addr), 
-					reinterpret_cast<void*>(endaddr));
+				memory_regions.emplace_back(addr, endaddr);
 			}
 		}
 		fclose(file);
 	}
+	merge_memory_regions(memory_regions);
 	return memory_regions;
 }

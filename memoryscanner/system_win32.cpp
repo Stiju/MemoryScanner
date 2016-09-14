@@ -64,5 +64,6 @@ MemoryRegions sys_memory_regions() {
 		}
 		address += mbi.RegionSize;
 	}
+	merge_memory_regions(memory_regions);
 	return memory_regions;
 }

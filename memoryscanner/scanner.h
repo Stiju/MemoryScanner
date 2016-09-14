@@ -3,7 +3,6 @@
 #include "system_public.h"
 
 class Scanner {
-	MemoryRegions regions;
 	MemoryResults results;
 public:
 	Scanner(size_t process_id);

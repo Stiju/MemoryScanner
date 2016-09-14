@@ -4,22 +4,6 @@
 
 const long long kBufferSize = 4096 * 32;
 
-void merge_memory_blocks(MemoryRegions& regions) {
-	for(auto it = regions.begin(); it != regions.end();) {
-		auto first = it++;
-		if(it == regions.end()) {
-			break;
-		}
-		if(first->end == it->begin) {
-			first->end = it->end;
-			regions.erase(it);
-			it = first;
-		} else {
-			++it;
-		}
-	}
-}
-
 Scanner::Scanner(size_t process_id) {
 	if(!sys_open_process(process_id)) {
 		throw std::runtime_error("failed to open process");
@@ -32,11 +16,7 @@ Scanner::~Scanner() {
 }
 
 void Scanner::find_first(int value) {
-	regions = sys_memory_regions();
-	std::cout << "Regions: " << regions.size() << '\n';
-	merge_memory_blocks(regions);
-	std::cout << "Regions: " << regions.size() << '\n';
-	for(const auto& region : regions) {
+	for(const auto& region : sys_memory_regions()) {
 		uint8_t* begin = region.begin;
 		if(!sys_seek_memory(begin)) {
 			std::cout << "Unable to seek memory location " << static_cast<void*>(begin) << ", error " << sys_get_error() << '\n';
@@ -62,7 +42,7 @@ void Scanner::find_first(int value) {
 void Scanner::find_next(int value) {
 	auto result_it = results.begin();
 	auto result_last = results.end();
-	for(const auto& region : regions) {
+	for(const auto& region : sys_memory_regions()) {
 		result_it = std::lower_bound(result_it, result_last, region.begin);
 		if(result_it == result_last) { // reached the end
 			break;

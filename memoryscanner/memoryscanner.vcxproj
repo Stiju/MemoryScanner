@@ -143,10 +143,12 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="memory.cpp" />
     <ClCompile Include="scanner.cpp" />
     <ClCompile Include="system_win32.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="memory.h" />
     <ClInclude Include="scanner.h" />
     <ClInclude Include="stopwatch.h" />
     <ClInclude Include="system_public.h" />
