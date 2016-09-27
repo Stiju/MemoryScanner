@@ -2,11 +2,29 @@
 
 #include "system_public.h"
 
+enum class ValueType {
+	Int8,
+	Int16,
+	Int32,
+	Int64,
+	Float,
+	Double,
+	String
+};
+
+enum class CompareType {
+	Equal,
+	Less,
+	Greater,
+	Unknown
+};
+
 class Scanner {
 	MemoryResults results;
 	struct Settings {
 		int alignment;
-
+		ValueType value_type;
+		CompareType compare_type;
 	} settings;
 public:
 	Scanner(size_t process_id);

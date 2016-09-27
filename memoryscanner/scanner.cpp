@@ -5,7 +5,7 @@
 
 const size_t kBufferSize = 4096 * 32;
 
-Scanner::Scanner(size_t process_id) : settings{4} {
+Scanner::Scanner(size_t process_id) : settings{4, ValueType::Int32, CompareType::Equal} {
 	if(!sys_open_process(process_id)) {
 		throw std::runtime_error("failed to open process");
 	}
