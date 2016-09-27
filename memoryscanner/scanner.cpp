@@ -1,10 +1,11 @@
 #include "scanner.h"
 #include <iostream>
 #include <algorithm>
+#include <functional>
 
 const size_t kBufferSize = 4096 * 32;
 
-Scanner::Scanner(size_t process_id) {
+Scanner::Scanner(size_t process_id) : settings{4} {
 	if(!sys_open_process(process_id)) {
 		throw std::runtime_error("failed to open process");
 	}
@@ -15,7 +16,32 @@ Scanner::~Scanner() {
 	sys_close_process();
 }
 
+template<typename T, typename Compare = std::equal_to<>>
+void find_in_buffer(uint8_t* begin, uint8_t* buffer_begin, uint8_t* buffer_end, int alignment, void* value, MemoryResults& results) {
+	T val = *reinterpret_cast<T*>(value);
+	for(uint8_t* i = buffer_begin; i < buffer_end; i += alignment) {
+		if(Compare()(*reinterpret_cast<T*>(i), val)) {
+			results.emplace_back(begin + (i - buffer_begin), *reinterpret_cast<T*>(i));
+		}
+	}
+}
+
+template<>
+void find_in_buffer<std::string>(uint8_t* begin, uint8_t* buffer_begin, uint8_t* buffer_end, int alignment, void* value, MemoryResults& results) {
+	std::string& val = *reinterpret_cast<std::string*>(value);
+	auto data = val.data();
+	size_t size = val.size();
+	for(uint8_t* i = buffer_begin; i < buffer_end; i += alignment) {
+		if(std::memcmp(i, data, size) == 0) {
+			results.emplace_back(begin + (i - buffer_begin), 0);
+		}
+	}
+}
+
 void Scanner::find_first(int value) {
+	std::function<void(uint8_t*, uint8_t*, uint8_t*, int, void*, MemoryResults&)> compare_method;
+	compare_method = find_in_buffer<int, std::equal_to<>>;
+	void* val = &value;
 	for(const auto& region : sys_memory_regions()) {
 		uint8_t* begin = region.begin;
 		if(!sys_seek_memory(begin)) {
@@ -29,11 +55,7 @@ void Scanner::find_first(int value) {
 			if(!success) {
 				std::cout << "Failed to read value at " << static_cast<void*>(begin) << ", read " << read << '/' << bytesToRead << ", error " << sys_get_error() << '\n';
 			}
-			for(uint8_t* i = buffer, *end = buffer + bytesToRead; i < end; i += sizeof(int)) {
-				if(*reinterpret_cast<int*>(i) == value) {
-					results.emplace_back(begin + (i - buffer), value);
-				}
-			}
+			compare_method(begin, buffer, buffer + bytesToRead, settings.alignment, val, results);
 			begin += kBufferSize;
 		}
 	}

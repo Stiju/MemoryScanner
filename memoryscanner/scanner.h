@@ -4,6 +4,10 @@
 
 class Scanner {
 	MemoryResults results;
+	struct Settings {
+		int alignment;
+
+	} settings;
 public:
 	Scanner(size_t process_id);
 	~Scanner();
