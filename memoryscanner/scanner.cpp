@@ -17,45 +17,12 @@ Scanner::~Scanner() {
 	sys_close_process();
 }
 
-template<typename T, typename Compare = std::equal_to<>>
-void find_in_buffer(uint8_t* begin, uint8_t* buffer_begin, uint8_t* buffer_end, int alignment, void* value, MemoryResults& results) {
-	T val = *reinterpret_cast<T*>(value);
-	for(uint8_t* i = buffer_begin; i < buffer_end; i += alignment) {
-		if(Compare()(*reinterpret_cast<T*>(i), val)) {
-			results.emplace_back(begin + (i - buffer_begin), *reinterpret_cast<int*>(i));
-		}
-	}
-}
-
-template<>
-void find_in_buffer<std::string>(uint8_t* begin, uint8_t* buffer_begin, uint8_t* buffer_end, int alignment, void* value, MemoryResults& results) {
-	std::string& val = *reinterpret_cast<std::string*>(value);
-	auto data = val.data();
-	size_t size = val.size();
-	for(uint8_t* i = buffer_begin; i < buffer_end; i += alignment) {
-		if(std::memcmp(i, data, size) == 0) {
-			results.emplace_back(begin + (i - buffer_begin), 0);
-		}
-	}
-}
-
 struct UnknownValue {
 	template<typename T>
 	constexpr bool operator()(const T&, const T&) const {
 		return true;
 	}
 };
-
-template<typename T>
-auto get_compare_method(CompareType compare_type) {
-	switch(compare_type) {
-	case CompareType::Equal: return find_in_buffer<T, std::equal_to<>>;
-	case CompareType::Less: return find_in_buffer<T, std::less<>>;
-	case CompareType::Greater: return find_in_buffer<T, std::greater<>>;
-	case CompareType::Unknown:
-	default: return find_in_buffer<int, UnknownValue>;
-	}
-}
 
 union DataValue {
 	int8_t int8;
@@ -64,41 +31,123 @@ union DataValue {
 	int64_t int64;
 	float float_value;
 	double double_value;
+	void* pointer;
 };
 
-void Scanner::find_first(const std::string& value) {
-	std::function<void(uint8_t*, uint8_t*, uint8_t*, int, void*, MemoryResults&)> compare_method;
-	DataValue dv;
-	void* val = &dv;
+template<typename Type, typename Compare = std::equal_to<>>
+struct FindInBuffer {
+	static void find_in_buffer(uint8_t* begin, uint8_t* buffer_begin, uint8_t* buffer_end, int alignment, void* value, MemoryResults& results) {
+		Type val = *reinterpret_cast<Type*>(value);
+		for(uint8_t* i = buffer_begin; i < buffer_end; i += alignment) {
+			if(Compare()(*reinterpret_cast<Type*>(i), val)) {
+				results.emplace_back(begin + (i - buffer_begin), *reinterpret_cast<int*>(i));
+			}
+		}
+	}
+};
+
+template<>
+struct FindInBuffer<std::string> {
+	static void find_in_buffer(uint8_t* begin, uint8_t* buffer_begin, uint8_t* buffer_end, int alignment, void* value, MemoryResults& results) {
+		std::string& val = *reinterpret_cast<std::string*>(value);
+		auto data = val.data();
+		size_t size = val.size();
+		for(uint8_t* i = buffer_begin; i < buffer_end; i += alignment) {
+			if(std::memcmp(i, data, size) == 0) {
+				results.emplace_back(begin + (i - buffer_begin), 0);
+			}
+		}
+	}
+};
+
+template<typename Type, typename Compare = std::equal_to<>>
+struct FindNextInBuffer {
+	static MemoryResults::iterator find_in_buffer(uint8_t* begin, uint8_t* buffer, size_t buffer_size, MemoryResults::iterator result_it, MemoryResults::iterator result_end, void* value) {
+		Type val = *reinterpret_cast<Type*>(value);
+		for(; result_it != result_end; ++result_it) {
+			size_t position = result_it->address - begin;
+			if(position >= buffer_size) {
+				break;
+			}
+			Type newval = *reinterpret_cast<Type*>(buffer + position);
+
+			if(Compare()(newval, val)) {
+				result_it->value = static_cast<int>(newval);
+			} else {
+				result_it->address = nullptr;
+			}
+		}
+		return result_it;
+	}
+};
+
+template<>
+struct FindNextInBuffer<std::string> {
+	static MemoryResults::iterator find_in_buffer(uint8_t* begin, uint8_t* buffer, size_t buffer_size, MemoryResults::iterator result_it, MemoryResults::iterator result_end, void* value) {
+		std::string& val = *reinterpret_cast<std::string*>(value);
+		auto data = val.data();
+		size_t size = val.size();
+		for(; result_it != result_end; ++result_it) {
+			size_t position = result_it->address - begin;
+			if(position >= buffer_size) {
+				break;
+			}
+			if(std::memcmp(buffer + position, data, size) != 0) {
+				result_it->address = nullptr;
+			}
+		}
+		return result_it;
+	}
+};
+
+template<typename T, template<typename Type, typename Compare> typename Func>
+auto get_compare_method(CompareType compare_type) {
+	switch(compare_type) {
+	case CompareType::Equal: return &Func<T, std::equal_to<>>::find_in_buffer;
+	case CompareType::Less: return &Func<T, std::less<>>::find_in_buffer;
+	case CompareType::Greater: return &Func<T, std::greater<>>::find_in_buffer;
+	case CompareType::Unknown:
+	default: return &Func<int, UnknownValue>::find_in_buffer;
+	}
+}
+
+template<template<typename Type, typename Compare> typename Func>
+auto parse_input(const std::string& input, DataValue& value, Scanner::Settings& settings) {
 	switch(settings.value_type) {
 	case ValueType::Int8:
-		compare_method = get_compare_method<int8_t>(settings.compare_type);
-		dv.int8 = static_cast<int8_t>(std::stoi(value));
-		break;
+		value.int8 = static_cast<int8_t>(std::stoi(input));
+		return get_compare_method<int8_t, Func>(settings.compare_type);
 	case ValueType::Int16:
-		compare_method = get_compare_method<int16_t>(settings.compare_type);
-		dv.int16 = static_cast<int16_t>(std::stoi(value));
-		break;
+		value.int16 = static_cast<int16_t>(std::stoi(input));
+		return get_compare_method<int16_t, Func>(settings.compare_type);
+	default:
 	case ValueType::Int32:
-		compare_method = get_compare_method<int32_t>(settings.compare_type);
-		dv.int32 = static_cast<int32_t>(std::stoi(value));
-		break;
+		value.int32 = static_cast<int32_t>(std::stoi(input));
+		return get_compare_method<int32_t, Func>(settings.compare_type);
 	case ValueType::Int64:
-		compare_method = get_compare_method<int64_t>(settings.compare_type);
-		dv.int64 = static_cast<int64_t>(std::stoll(value));
-		break;
+		value.int64 = static_cast<int64_t>(std::stoll(input));
+		return get_compare_method<int64_t, Func>(settings.compare_type);
 	case ValueType::Float:
-		compare_method = get_compare_method<float>(settings.compare_type);
-		dv.float_value = std::stof(value);
-		break;
+		value.float_value = std::stof(input);
+		return get_compare_method<float, Func>(settings.compare_type);
 	case ValueType::Double:
-		compare_method = get_compare_method<double>(settings.compare_type);
-		dv.double_value = std::stod(value);
-		break;
+		value.double_value = std::stod(input);
+		return get_compare_method<double, Func>(settings.compare_type);
 	case ValueType::String:
-		compare_method = find_in_buffer<std::string, std::equal_to<>>;
-		val = &const_cast<std::string&>(value);
-		break;
+		value.pointer = &const_cast<std::string&>(input);
+		return &Func<std::string, std::equal_to<>>::find_in_buffer;
+	}
+}
+
+void Scanner::find_first(const std::string& value) {
+	void(*compare_method)(uint8_t*, uint8_t*, uint8_t*, int, void*, MemoryResults&);
+
+	DataValue dv;
+	void* val = &dv;
+
+	compare_method = parse_input<FindInBuffer>(value, dv, settings);
+	if(settings.value_type == ValueType::String) {
+		val = dv.pointer;
 	}
 	for(const auto& region : sys_memory_regions()) {
 		uint8_t* begin = region.begin;
@@ -119,86 +168,15 @@ void Scanner::find_first(const std::string& value) {
 	}
 }
 
-template<typename T, typename Compare = std::equal_to<>>
-MemoryResults::iterator find_next_in_buffer(uint8_t* begin, uint8_t* buffer, size_t buffer_size, MemoryResults::iterator result_it, MemoryResults::iterator result_end, void* value) {
-	T val = *reinterpret_cast<T*>(value);
-	for(; result_it != result_end; ++result_it) {
-		size_t position = result_it->address - begin;
-		if(position >= buffer_size) {
-			break;
-		}
-		T newval = *reinterpret_cast<T*>(buffer + position);
-
-		if(Compare()(newval, val)) {
-			result_it->value = static_cast<int>(newval);
-		} else {
-			result_it->address = nullptr;
-		}
-	}
-	return result_it;
-}
-
-template<>
-MemoryResults::iterator find_next_in_buffer<std::string>(uint8_t* begin, uint8_t* buffer, size_t buffer_size, MemoryResults::iterator result_it, MemoryResults::iterator result_end, void* value) {
-	std::string& val = *reinterpret_cast<std::string*>(value);
-	auto data = val.data();
-	size_t size = val.size();
-	for(; result_it != result_end; ++result_it) {
-		size_t position = result_it->address - begin;
-		if(position >= buffer_size) {
-			break;
-		}
-		if(std::memcmp(buffer + position, data, size) != 0) {
-			result_it->address = nullptr;
-		}
-	}
-	return result_it;
-}
-
-template<typename T>
-auto get_next_compare_method(CompareType compare_type) {
-	switch(compare_type) {
-	case CompareType::Equal: return find_next_in_buffer<T, std::equal_to<>>;
-	case CompareType::Less: return find_next_in_buffer<T, std::less<>>;
-	case CompareType::Greater: return find_next_in_buffer<T, std::greater<>>;
-	case CompareType::Unknown:
-	default: return find_next_in_buffer<int, UnknownValue>;
-	}
-}
-
 void Scanner::find_next(const std::string& value) {
-	std::function<MemoryResults::iterator(uint8_t*, uint8_t*, size_t, MemoryResults::iterator, MemoryResults::iterator, void*)> compare_method;
+	MemoryResults::iterator(*compare_method)(uint8_t*, uint8_t*, size_t, MemoryResults::iterator, MemoryResults::iterator, void*);
+
 	DataValue dv;
 	void* val = &dv;
-	switch(settings.value_type) {
-	case ValueType::Int8:
-		compare_method = get_next_compare_method<int8_t>(settings.compare_type);
-		dv.int8 = static_cast<int8_t>(std::stoi(value));
-		break;
-	case ValueType::Int16:
-		compare_method = get_next_compare_method<int16_t>(settings.compare_type);
-		dv.int16 = static_cast<int16_t>(std::stoi(value));
-		break;
-	case ValueType::Int32:
-		compare_method = get_next_compare_method<int32_t>(settings.compare_type);
-		dv.int32 = static_cast<int32_t>(std::stoi(value));
-		break;
-	case ValueType::Int64:
-		compare_method = get_next_compare_method<int64_t>(settings.compare_type);
-		dv.int64 = static_cast<int64_t>(std::stoll(value));
-		break;
-	case ValueType::Float:
-		compare_method = get_next_compare_method<float>(settings.compare_type);
-		dv.float_value = std::stof(value);
-		break;
-	case ValueType::Double:
-		compare_method = get_next_compare_method<double>(settings.compare_type);
-		dv.double_value = std::stod(value);
-		break;
-	case ValueType::String:
-		compare_method = find_next_in_buffer<std::string, std::equal_to<>>;
-		val = &const_cast<std::string&>(value);
-		break;
+
+	compare_method = parse_input<FindNextInBuffer>(value, dv, settings);
+	if(settings.value_type == ValueType::String) {
+		val = dv.pointer;
 	}
 
 	auto result_it = results.begin();
