@@ -2,6 +2,8 @@
 
 #include "system_public.h"
 
+#include <string>
+
 enum class ValueType {
 	Int8,
 	Int16,
@@ -21,12 +23,12 @@ enum class CompareType {
 
 class Scanner {
 	MemoryResults results;
+public:
 	struct Settings {
 		int alignment;
 		ValueType value_type;
 		CompareType compare_type;
 	} settings;
-public:
 	Scanner(size_t process_id);
 	~Scanner();
 
@@ -46,7 +48,7 @@ public:
 		return results.size();
 	}
 
-	void find_first(int value);
-	void find_next(int value);
-	void find(int value);
+	void find_first(const std::string& value);
+	void find_next(const std::string& value);
+	void find(const std::string& value);
 };

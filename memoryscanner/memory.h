@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <cstdint>
+#include <cstddef>
 
 struct MemoryRegion {
 	uint8_t* begin;

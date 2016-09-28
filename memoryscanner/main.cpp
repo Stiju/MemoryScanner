@@ -45,12 +45,21 @@ int main() {
 			std::cout << ":: Next Scan\n";
 		}
 		std::cout << "Search for: ";
-		int value = GetInputInt();
-		if(value == -1) {
+		std::string value = GetInput();
+		if(value == "exit") {
 			break;
-		} else if(value == -2) {
+		} else if(value == "clear") {
 			std::cout << "Clearing results\n";
 			scanner.clear();
+			continue;
+		} else if(value == "type") {
+			if(scanner.settings.value_type == ValueType::Int32) {
+				scanner.settings.value_type = ValueType::String;
+				std::cout << "ValueType::String\n";
+			} else {
+				scanner.settings.value_type = ValueType::Int32;
+				std::cout << "ValueType::Int32\n";
+			}
 			continue;
 		}
 
