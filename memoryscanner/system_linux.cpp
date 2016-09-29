@@ -4,6 +4,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
+#include <sys/param.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
@@ -68,9 +69,9 @@ MemoryRegions sys_memory_regions() {
 	if(file) {
 		uint8_t* addr, *endaddr;
 		long long offset, inode;
-		char permissions[8], device[8], pathname[256];
+		char permissions[8], device[8], pathname[MAXPATHLEN];
 		for(;;) {
-			int ret = fscanf(file, "%p-%p %s %llx %s %llx %[^\n]", &addr, &endaddr, permissions, &offset, device, &inode, pathname);
+			int ret = fscanf(file, "%p-%p %s %llx %s %llx%[^\n]", &addr, &endaddr, permissions, &offset, device, &inode, pathname);
 			if(ret == 0 || ret == EOF) {
 				break;
 			}
