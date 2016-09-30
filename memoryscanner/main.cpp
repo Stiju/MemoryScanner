@@ -72,8 +72,8 @@ int main() {
 		auto& results = scanner.get_results();
 		std::cout << "results: " << results.size() << '\n';
 		int i = 0;
-		for(const auto& adr : results) {
-			std::cout << static_cast<void*>(adr.address) << " : " << adr.value << '\n';
+		for(const auto adr : results) {
+			std::cout << static_cast<void*>(adr.address) << " : " << adr.value.int32 << '\n';
 			if(++i == 10) {
 				break;
 			}

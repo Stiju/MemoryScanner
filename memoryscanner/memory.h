@@ -12,10 +12,21 @@ struct MemoryRegion {
 
 using MemoryRegions = std::vector<MemoryRegion>;
 
+union DataValue {
+	int8_t int8;
+	int16_t int16;
+	int32_t int32;
+	int64_t int64;
+	float float_value;
+	double double_value;
+	void* pointer;
+};
+
 struct MemoryResult {
 	uint8_t* address;
-	int value;
-	MemoryResult(uint8_t* adr, int v) : address(adr), value(v) {}
+	DataValue value;
+	MemoryResult(uint8_t* adr) : address(adr) {}
+	MemoryResult(uint8_t* adr, DataValue v) : address(adr), value(v) {}
 	friend bool operator<(const MemoryResult& element, uint8_t* value) { return element.address < value; }
 };
 

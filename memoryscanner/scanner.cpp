@@ -24,23 +24,13 @@ struct UnknownValue {
 	}
 };
 
-union DataValue {
-	int8_t int8;
-	int16_t int16;
-	int32_t int32;
-	int64_t int64;
-	float float_value;
-	double double_value;
-	void* pointer;
-};
-
 template<typename Type, typename Compare = std::equal_to<>>
 struct FindInBuffer {
 	static void find_in_buffer(uint8_t* begin, uint8_t* buffer_begin, uint8_t* buffer_end, int alignment, void* value, MemoryResults& results) {
 		Type val = *reinterpret_cast<Type*>(value);
 		for(uint8_t* i = buffer_begin; i < buffer_end; i += alignment) {
 			if(Compare()(*reinterpret_cast<Type*>(i), val)) {
-				results.emplace_back(begin + (i - buffer_begin), *reinterpret_cast<int*>(i));
+				results.emplace_back(begin + (i - buffer_begin), *reinterpret_cast<DataValue*>(i));
 			}
 		}
 	}
@@ -54,7 +44,7 @@ struct FindInBuffer<std::string> {
 		size_t size = val.size();
 		for(uint8_t* i = buffer_begin; i < buffer_end; i += alignment) {
 			if(std::memcmp(i, data, size) == 0) {
-				results.emplace_back(begin + (i - buffer_begin), 0);
+				results.emplace_back(begin + (i - buffer_begin));
 			}
 		}
 	}
@@ -72,7 +62,7 @@ struct FindNextInBuffer {
 			Type newval = *reinterpret_cast<Type*>(buffer + position);
 
 			if(Compare()(newval, val)) {
-				result_it->value = static_cast<int>(newval);
+				result_it->value = *reinterpret_cast<DataValue*>(buffer + position);
 			} else {
 				result_it->address = nullptr;
 			}
