@@ -36,7 +36,7 @@ bool sys_close_process() {
 	return true;
 }
 
-bool sys_seek_memory(void* address) { return true; }
+bool sys_seek_memory(void* /*address*/) { return true; }
 
 bool sys_read_memory(void* address, void* buffer, size_t size, size_t* read) {
 	return ReadProcessMemory(win32.process, address, buffer, size, reinterpret_cast<SIZE_T*>(read)) != 0;

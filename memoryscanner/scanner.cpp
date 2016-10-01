@@ -90,7 +90,7 @@ struct FindNextInBuffer<std::string> {
 	}
 };
 
-template<typename T, template<typename Type, typename Compare> typename Func>
+template<typename T, template<typename Type, typename Compare> class Func>
 auto get_compare_method(CompareType compare_type) {
 	switch(compare_type) {
 	case CompareType::Equal: return &Func<T, std::equal_to<>>::find_in_buffer;
@@ -101,7 +101,7 @@ auto get_compare_method(CompareType compare_type) {
 	}
 }
 
-template<template<typename Type, typename Compare> typename Func>
+template<template<typename Type, typename Compare> class Func>
 auto parse_input(const std::string& input, DataValue& value, Scanner::Settings& settings) {
 	switch(settings.value_type) {
 	case ValueType::Int8:

@@ -77,8 +77,8 @@ MemoryRegions sys_memory_regions() {
 			}
 			bool read = permissions[0] == 'r';
 			bool write = permissions[1] == 'w';
-			bool exec = permissions[2] == 'x';
-			bool priv = permissions[3] == 'p';
+			//bool exec = permissions[2] == 'x';
+			//bool priv = permissions[3] == 'p';
 			if(read && write) {
 				memory_regions.emplace_back(addr, endaddr);
 			}
