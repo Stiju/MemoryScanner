@@ -72,6 +72,6 @@ MemoryRegions sys_memory_regions() {
 		address += size;
 	}
 
-	//merge_memory_regions(memory_regions);
+	merge_memory_regions(memory_regions);
 	return memory_regions;
 }
