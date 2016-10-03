@@ -8,8 +8,6 @@
 #include <sys/types.h>
 #include <sys/ptrace.h>
 #include <errno.h>
-#include <stdlib.h>
-#include <Security/Authorization.h>
 
 struct MacOsVars {
 	pid_t process_id;
