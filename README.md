@@ -4,7 +4,7 @@ Cross-platform memory scanning tool that runs on Windows, Linux and macOS.
 Right now it uses a temporary command-line interface but will hopefully switch to a graphical user interface in the near future. (famous last words)
 
 ## How to Compile
-Compile all non-system .cpp files and the specific system_<platform>.cpp for your system.
+Compile all non-system .cpp files and the specific system_\<platform>.cpp for your system.
 
 ### Windows
 Build the Visual Studio solution file.
