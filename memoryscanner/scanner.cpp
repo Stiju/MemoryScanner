@@ -162,7 +162,8 @@ void Scanner::find_first(const std::string& value) {
 	}
 	size_t value_size = get_value_size(value, settings);
 	size_t buffer_step = kBufferSize - value_size;
-
+	std::vector<uint8_t> buffer(kBufferSize);
+	auto buffer_ptr = buffer.data();
 	for(const auto& region : sys_memory_regions()) {
 		uint8_t* begin = region.begin;
 		if(!sys_seek_memory(begin)) {
@@ -171,13 +172,12 @@ void Scanner::find_first(const std::string& value) {
 		}
 		while(begin < region.end) {
 			size_t read, bytesToRead = std::min(kBufferSize, static_cast<size_t>(region.end - begin));
-			uint8_t buffer[kBufferSize];
-			bool success = sys_read_memory(begin, &buffer, bytesToRead, &read);
+			bool success = sys_read_memory(begin, buffer_ptr, bytesToRead, &read);
 			if(!success) {
 				std::cout << "Failed to read value at " << static_cast<void*>(begin) << ", read " << read << '/' << bytesToRead << ", error " << sys_get_error() << '\n';
 				break;
 			}
-			compare_method(begin, buffer, buffer + bytesToRead - value_size, settings.alignment, val, results);
+			compare_method(begin, buffer_ptr, buffer_ptr + bytesToRead - value_size, settings.alignment, val, results);
 			begin += buffer_step;
 		}
 	}
@@ -198,6 +198,8 @@ void Scanner::find_next(const std::string& value) {
 
 	auto result_it = results.begin();
 	auto result_last = results.end();
+	std::vector<uint8_t> buffer(kBufferSize);
+	auto buffer_ptr = buffer.data();
 	for(const auto& region : sys_memory_regions()) {
 		result_it = std::lower_bound(result_it, result_last, region.begin);
 		if(result_it == result_last) { // reached the end
@@ -215,13 +217,11 @@ void Scanner::find_next(const std::string& value) {
 		}
 		while(begin < region.end && result_it != result_end) {
 			size_t read, bytesToRead = std::min(kBufferSize, static_cast<size_t>(region.end - begin));
-			uint8_t buffer[kBufferSize];
-			if(!sys_read_memory(begin, &buffer, bytesToRead, &read)) {
+			if(!sys_read_memory(begin, buffer_ptr, bytesToRead, &read)) {
 				std::cout << "Failed to read value at " << static_cast<void*>(begin) << ", read " << read << '/' << bytesToRead << ", error " << sys_get_error() << '\n';
 				break;
 			}
-			result_it = compare_method(begin, buffer, buffer_step, result_it, result_end, val);
-
+			result_it = compare_method(begin, buffer_ptr, buffer_step, result_it, result_end, val);
 			begin += buffer_step;
 		}
 	}
