@@ -102,7 +102,7 @@ auto get_compare_method(CompareType compare_type) {
 }
 
 template<template<typename Type, typename Compare> class Func>
-auto parse_input(const std::string& input, DataValue& value, Scanner::Settings& settings) {
+auto parse_input(const std::string& input, DataValue& value, const Scanner::Settings& settings) {
 	switch(settings.value_type) {
 	case ValueType::Int8:
 		value.int8 = static_cast<int8_t>(std::stoi(input));
@@ -129,6 +129,27 @@ auto parse_input(const std::string& input, DataValue& value, Scanner::Settings& 
 	}
 }
 
+size_t get_value_size(const std::string& input, const Scanner::Settings& settings) {
+	int alignment = settings.alignment;
+	switch(settings.value_type) {
+	case ValueType::Int8:
+		return sizeof(int8_t) - alignment;
+	case ValueType::Int16:
+		return sizeof(int16_t) - alignment;
+	default:
+	case ValueType::Int32:
+		return sizeof(int32_t) - alignment;
+	case ValueType::Int64:
+		return sizeof(int64_t) - alignment;
+	case ValueType::Float:
+		return sizeof(float) - alignment;
+	case ValueType::Double:
+		return sizeof(double) - alignment;
+	case ValueType::String:
+		return static_cast<size_t>(std::ceil(static_cast<float>(input.size()) / alignment) * alignment) - alignment;
+	}
+}
+
 void Scanner::find_first(const std::string& value) {
 	void(*compare_method)(uint8_t*, uint8_t*, uint8_t*, int, void*, MemoryResults&);
 
@@ -139,6 +160,9 @@ void Scanner::find_first(const std::string& value) {
 	if(settings.value_type == ValueType::String) {
 		val = dv.pointer;
 	}
+	size_t value_size = get_value_size(value, settings);
+	size_t buffer_step = kBufferSize - value_size;
+
 	for(const auto& region : sys_memory_regions()) {
 		uint8_t* begin = region.begin;
 		if(!sys_seek_memory(begin)) {
@@ -151,9 +175,10 @@ void Scanner::find_first(const std::string& value) {
 			bool success = sys_read_memory(begin, &buffer, bytesToRead, &read);
 			if(!success) {
 				std::cout << "Failed to read value at " << static_cast<void*>(begin) << ", read " << read << '/' << bytesToRead << ", error " << sys_get_error() << '\n';
+				break;
 			}
-			compare_method(begin, buffer, buffer + bytesToRead, settings.alignment, val, results);
-			begin += kBufferSize;
+			compare_method(begin, buffer, buffer + bytesToRead - value_size, settings.alignment, val, results);
+			begin += buffer_step;
 		}
 	}
 }
@@ -168,6 +193,8 @@ void Scanner::find_next(const std::string& value) {
 	if(settings.value_type == ValueType::String) {
 		val = dv.pointer;
 	}
+	size_t value_size = get_value_size(value, settings);
+	size_t buffer_step = kBufferSize - value_size;
 
 	auto result_it = results.begin();
 	auto result_last = results.end();
@@ -191,10 +218,11 @@ void Scanner::find_next(const std::string& value) {
 			uint8_t buffer[kBufferSize];
 			if(!sys_read_memory(begin, &buffer, bytesToRead, &read)) {
 				std::cout << "Failed to read value at " << static_cast<void*>(begin) << ", read " << read << '/' << bytesToRead << ", error " << sys_get_error() << '\n';
+				break;
 			}
-			result_it = compare_method(begin, buffer, kBufferSize, result_it, result_end, val);
+			result_it = compare_method(begin, buffer, buffer_step, result_it, result_end, val);
 
-			begin += kBufferSize;
+			begin += buffer_step;
 		}
 	}
 	results.erase(std::remove_if(results.begin(), results.end(), [](auto& x) {return x.address == nullptr; }), results.end());
