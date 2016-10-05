@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <functional>
 #include <cstring>
+#include <cmath>
 
 const size_t kBufferSize = 4096 * 32;
 
