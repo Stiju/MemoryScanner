@@ -18,7 +18,11 @@ enum class CompareType {
 	Equal,
 	Less,
 	Greater,
-	Unknown
+	Unknown,
+	Increased,
+	Decreased,
+	Unchanged,
+	Changed
 };
 
 class Scanner {

@@ -24,6 +24,34 @@ struct UnknownValue {
 	}
 };
 
+struct IncreasedValue {
+	template<typename T>
+	constexpr bool operator()(const T& left, const T& right) const {
+		return std::greater<>()(left, right);
+	}
+};
+
+struct DecreasedValue {
+	template<typename T>
+	constexpr bool operator()(const T& left, const T& right) const {
+		return std::less<>()(left, right);
+	}
+};
+
+struct UnchangedValue {
+	template<typename T>
+	constexpr bool operator()(const T& left, const T& right) const {
+		return std::equal_to<>()(left, right);
+	}
+};
+
+struct ChangedValue {
+	template<typename T>
+	constexpr bool operator()(const T& left, const T& right) const {
+		return !std::equal_to<>()(left, right);
+	}
+};
+
 template<typename Type, typename Compare = std::equal_to<>>
 struct FindInBuffer {
 	static void find_in_buffer(uint8_t* begin, uint8_t* buffer_begin, uint8_t* buffer_end, int alignment, void* value, MemoryResults& results) {
@@ -34,6 +62,7 @@ struct FindInBuffer {
 			}
 		}
 	}
+	static void find_in_buffer_prev(uint8_t*, uint8_t*, uint8_t*, int, void*, MemoryResults&) {}
 };
 
 template<>
@@ -62,6 +91,23 @@ struct FindNextInBuffer {
 			Type newval = *reinterpret_cast<Type*>(buffer + position);
 
 			if(Compare()(newval, val)) {
+				result_it->value = *reinterpret_cast<DataValue*>(buffer + position);
+			} else {
+				result_it->address = nullptr;
+			}
+		}
+		return result_it;
+	}
+
+	static MemoryResults::iterator find_in_buffer_prev(uint8_t* begin, uint8_t* buffer, size_t buffer_size, MemoryResults::iterator result_it, MemoryResults::iterator result_end, void* /*value*/) {
+		for(; result_it != result_end; ++result_it) {
+			size_t position = result_it->address - begin;
+			if(position >= buffer_size) {
+				break;
+			}
+			Type newval = *reinterpret_cast<Type*>(buffer + position);
+
+			if(Compare()(newval, *reinterpret_cast<Type*>(&result_it->value))) {
 				result_it->value = *reinterpret_cast<DataValue*>(buffer + position);
 			} else {
 				result_it->address = nullptr;
@@ -98,6 +144,10 @@ auto get_compare_method(CompareType compare_type) {
 	case CompareType::Greater: return &Func<T, std::greater<>>::find_in_buffer;
 	case CompareType::Unknown:
 	default: return &Func<int, UnknownValue>::find_in_buffer;
+	case CompareType::Increased: return &Func<T, IncreasedValue>::find_in_buffer_prev;
+	case CompareType::Decreased: return &Func<T, DecreasedValue>::find_in_buffer_prev;
+	case CompareType::Unchanged: return &Func<T, UnchangedValue>::find_in_buffer_prev;
+	case CompareType::Changed: return &Func<T, ChangedValue>::find_in_buffer_prev;
 	}
 }
 

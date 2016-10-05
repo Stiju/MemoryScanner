@@ -89,10 +89,14 @@ void set_compare_type(Scanner& scanner) {
 		{"equal", CompareType::Equal},
 		{"less", CompareType::Less},
 		{"greater", CompareType::Greater},
-		{"unknown", CompareType::Unknown}
+		{"unknown", CompareType::Unknown},
+		{"increased", CompareType::Increased},
+		{"decreased", CompareType::Decreased},
+		{"unchanged", CompareType::Unchanged},
+		{"changed", CompareType::Changed}
 	};
 	for(;;) {
-		std::cout << "CompareType: equal, less, greater, unknown\n";
+		std::cout << "CompareType: equal, less, greater, unknown, increased, decreased, unchanged, changed\n";
 		std::string input = GetInputLower();
 		if(input == "!q") {
 			break;
@@ -108,7 +112,7 @@ void set_compare_type(Scanner& scanner) {
 
 void scan(Scanner& scanner) {
 	const std::string value_type_names[] = {"int8", "int16", "int32", "int64", "float", "double", "string"};
-	const std::string compare_type_names[] = {"equal", "less", "greater", "unknown"};
+	const std::string compare_type_names[] = {"equal", "less", "greater", "unknown", "increased", "decreased", "unchanged", "changed"};
 	for(;;) {
 		if(scanner.size() == 0) {
 			std::cout << ":: New Scan\n";
