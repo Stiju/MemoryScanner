@@ -21,4 +21,4 @@ clang++ main.cpp memory.cpp scanner.cpp system_macos.cpp -o memscan -O3 -fexcept
 
 ## Note
 On Linux and macOS make sure to run as root to have access to other processes.
-macOs will only allow you to scan non-system applications.
+macOS will only allow you to scan non-system applications.
